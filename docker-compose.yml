@@ -1,0 +1,89 @@
+# note links are deprecated, so this is why there is no systematic use (because lazy)
+# see https://medium.com/@tristan.claverie/well-there-is-in-fact-a-simpler-solution-than-creating-a-network-do-nothing-at-all-docker-f38e93326134
+version: "2"
+services:
+  smtp:
+    image: namshi/smtp
+    ports:
+      - "25:25"
+  urireferencer:
+    image: proces_toevalsvondsten-dev/uriregistry:latest
+    ports:
+      - "6542:6543"
+  elastic:
+    image: geosolutions/elasticsearch-plugins
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./data/elastic:/usr/share/elasticsearch/data
+  postgres:
+    image: proces_toevalsvondsten-dev/postgres:latest
+    environment:
+      - "POSTGRES_PASSWORD=postgres"
+      - "POSTGRES_USER=postgres"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  storageprovider:
+    image: proces_toevalsvondsten-dev/storageprovider:latest
+    ports:
+      - "6544:6544"
+    volumes:
+      - ./data/storageprovider:/proces_toevalsvondsten_store
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+  dossierdata:
+    image: proces_toevalsvondsten-dev/dossierdata:latest
+    volumes:
+        - ./dossierdata/dossierdata/development-private.ini:/app/dossierdata/development-private.ini
+    ports:
+     - "6548:6545"
+  dossierdata-rqworker:
+    image: proces_toevalsvondsten-dev/dossierdata:latest
+    command: bash -c "echo 'sleeping...'; sleep 30; rqworker -u 'http://redis:6379' dossier_es_indexer"
+  vondstmeldingen:
+    image: proces_toevalsvondsten-dev/vondstmeldingen:latest
+    volumes:
+        - ./vondstmeldingen/vondstmeldingen/static:/app/vondstmeldingen/static
+        - ./vondstmeldingen/development-private.ini:/app/development-private.ini
+    ports:
+     - "6546:6543"
+  vondstmeldingen-rqworker:
+    image: proces_toevalsvondsten-dev/vondstmeldingen:latest
+    command: bash -c "echo 'sleeping...'; sleep 30; rqworker -u 'http://redis:6379' vondstmeldingen_es_indexer"
+  daemon:
+    image: proces_toevalsvondsten-dev/daemon:latest
+    depends_on:
+      - "postgres"
+    command: bash -c "echo 'sleeping...'; sleep 60; python scripts_local/proces_toevalsvondsten_daemon.py"
+    volumes:
+        - ./proces_toevalsvondsten/daemon/scripts_local/local_daemon_config.ini:/app/scripts_local/local_daemon_config.ini
+        - ./proces_toevalsvondsten/daemon/toevalsvondsten_daemon:/app/toevalsvondsten_daemon
+  proces:
+    image: proces_toevalsvondsten-dev/proces:latest
+    volumes:
+        - ./proces_toevalsvondsten/proces/development-private.ini:/app/development-private.ini
+        - ./proces_toevalsvondsten/proces/proces_toevalsvondsten:/app/proces_toevalsvondsten
+        - ./proces_toevalsvondsten/proces/tests:/app/tests
+    ports:
+     - "6543:6543"
+  proces-rqworker:
+    image: proces_toevalsvondsten-dev/proces:latest
+    volumes:
+        - ./proces_toevalsvondsten/proces/development-private.ini:/app/development-private.ini
+        - ./proces_toevalsvondsten/proces/proces_toevalsvondsten:/app/proces_toevalsvondsten
+        - ./proces_toevalsvondsten/proces/tests:/app/tests
+    command: bash -c "echo 'sleeping...'; sleep 30; rqworker -u 'http://redis:6379' proces_toevalsvondsten"
+  documentgenerator:
+    image: proces_toevalsvondsten-dev/documentgenerator:latest
+    ports:
+     - "6547:6546"
+    volumes:
+     - ./documentgenerator/documentgenerator:/app/documentgenerator
+     - ./documentgenerator/alembic:/app/alembic
+     - ./documentgenerator/tests:/app/tests
+     - ./documentgenerator/docs:/app/docs
+     - ./documentgenerator/development-private.ini:/app/development-private.ini

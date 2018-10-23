@@ -1,0 +1,13 @@
+FROM proces_toevalsvondsten-dev/dossierdata:latest
+
+ARG GITUSER="USERNAME_NEEDED"
+ARG GITPW="PASSWORD_NEEDED"
+
+WORKDIR "/app/dossierdata"
+# get regioveranwtoordelijken HACKALERT
+RUN echo '[{"actor":"https://dev-id.erfgoed.net/actoren/10004","proces":"https://id.erfgoed.net/processen/4","niscode":["30000","40000","20001", "24062"]},{"actor":"https://dev-id.erfgoed.net/actoren/10051","proces":"https://id.erfgoed.net/processen/4","niscode":["70000","10000","20001"]}]' > archeologie.json
+
+# get processen HACKALERT
+RUN curl https://$GITUSER:$GITPW@raw.githubusercontent.com/OnroerendErfgoed/scripts/master/servers/dossierdata/config/processen-dev.json > processen.json
+RUN sed -i -e 's/dev-//g' processen.json
+CMD ["sh", "-c", "initialize_dossierdata_es development.ini#dossierdata; initialize_processen_es development.ini#dossierdata processen.json; initialize_regioverantwoordelijken_es development.ini#dossierdata archeologie.json;"]

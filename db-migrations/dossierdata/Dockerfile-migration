@@ -1,0 +1,11 @@
+FROM proces_toevalsvondsten-dev/dossierdata:latest
+RUN apt-get install -y postgresql-client
+
+COPY ./alembic-custom.ini /app/
+
+ENV PGPASSWORD=postgres
+
+# Serve
+WORKDIR "/app"
+
+CMD ["sh", "-c", "alembic -c alembic-custom.ini upgrade head"]
